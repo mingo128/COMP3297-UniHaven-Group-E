@@ -39,6 +39,17 @@ def add_accommodation(data: dict) -> str:
     conn.close()
     return accommodation_id
 
+def delete_accommodation(accommodation_id: str) -> bool:
+    """Delete accommodation by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM accommodations WHERE id = ?", (accommodation_id,))
+    conn.commit()
+    conn.close()
+
+    if cursor.rowcount == 0:
+        return False
+    return True
 
 def get_public_listings(page: int = 1, page_size: int = 10) -> list:
     """Get public listings with pagination"""
@@ -78,7 +89,6 @@ def get_accommodation_details(accommodation_id: str) -> dict:
     columns = [col[0] for col in cursor.description]
     data = dict(zip(columns, row))
 
-    # 解析 JSON 字段
     data["amenities"] = json.loads(data["amenities"]) if data["amenities"] else []
     data["photos"] = json.loads(data["photos"]) if data["photos"] else []
     data["availability_calendar"] = json.loads(data["availability_calendar"]) if data["availability_calendar"] else []
@@ -94,5 +104,4 @@ def get_listing_preview(listing: dict) -> dict:
         "type": listing["type"],
         "price": listing["price"],
         "location": listing["location"]
-        # 你也可以加入距离、评分等字段
     }
