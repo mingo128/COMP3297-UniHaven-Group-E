@@ -9,6 +9,7 @@ from method.students import (
     apply_for_accommodation, get_my_applications,
     cancel_application, add_review
 )
+from utils.geo import get_distance_to_hku 
 import datetime
 
 def print_section(title):
@@ -36,8 +37,8 @@ def main():
         "shared_bathroom": True,
         "price": 7800.0,
         "location": "Sheung Wan",
-        "latitude": 22.287,
-        "longitude": 114.150,
+        "latitude": 23.287,
+        "longitude": 115.150,
         "amenities": ["Wi-Fi", "Air-con"],
         "photos": ["image.png"],
         "landlord_id": landlord_id,
@@ -57,6 +58,11 @@ def main():
     # get accommodation details
     print_section("Accommodation Details")
     print(get_accommodation_details(acc_id))
+    
+   #get distance to HKU
+    print_section("Distance to HKU")
+    distance = get_distance_to_hku(acc_id)
+    print("Distance to HKU:", distance, "meters")
     
     print(get_all_landlords())
 
@@ -101,8 +107,6 @@ def main():
     print_section("Delete Users")
     print("Delete student:", delete_student(student_id))
     print("Delete landlord:", delete_landlord(landlord_id))
-    
-    
 
 if __name__ == "__main__":
     main()
