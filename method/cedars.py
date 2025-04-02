@@ -59,7 +59,7 @@ def add_landlord(name: str, email: str, phone: str) -> str:
     finally:
         conn.close()
         
-def add_student(name: str, email: str, phone: str) -> str:
+def add_student(student_uid: str, name: str, email: str, phone: str) -> str:
     """add student, return student UUID"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -67,9 +67,9 @@ def add_student(name: str, email: str, phone: str) -> str:
 
     try:
         cursor.execute("""
-        INSERT INTO students (id, name, email, phone)
-        VALUES (?, ?, ?, ?)
-        """, (student_id, name, email, phone))
+        INSERT INTO students (id, student_id, name, email, phone)
+        VALUES (?, ?, ?, ?, ?)
+        """, (student_id, student_uid, name, email, phone))
         conn.commit()
         print(f"Student added: {name} ({student_id})")
         return student_id
@@ -78,6 +78,7 @@ def add_student(name: str, email: str, phone: str) -> str:
         return None
     finally:
         conn.close()
+
 
 def delete_accommodation(accommodation_id: str) -> bool:
     """Delete accommodation by ID"""
@@ -98,7 +99,6 @@ def delete_landlord(landlord_id: str) -> bool:
     cursor.execute("DELETE FROM landlords WHERE id = ?", (landlord_id,))
     conn.commit()
     conn.close()
-
     if cursor.rowcount == 0:
         return False
     return True
@@ -110,7 +110,28 @@ def delete_student(student_id: str) -> bool:
     cursor.execute("DELETE FROM students WHERE id = ?", (student_id,))
     conn.commit()
     conn.close()
+    if cursor.rowcount == 0:
+        return False
+    return True
 
+def delete_application(application_id: str) -> bool:
+    """Delete application by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM applications WHERE id = ?", (application_id,))
+    conn.commit()
+    conn.close()
+    if cursor.rowcount == 0:
+        return False
+    return True
+
+def delete_review(review_id: str) -> bool:
+    """Delete review by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
+    conn.commit()
+    conn.close()
     if cursor.rowcount == 0:
         return False
     return True

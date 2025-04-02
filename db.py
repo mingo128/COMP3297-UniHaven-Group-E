@@ -7,7 +7,6 @@ def get_connection():
     conn.execute("PRAGMA foreign_keys = ON")  
     return conn
 
-
 def initialize_db():
     """Create tables if they do not exist."""
     conn = get_connection()
