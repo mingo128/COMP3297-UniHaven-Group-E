@@ -58,6 +58,26 @@ def add_landlord(name: str, email: str, phone: str) -> str:
         return None
     finally:
         conn.close()
+        
+def add_student(name: str, email: str, phone: str) -> str:
+    """add student, return student UUID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    student_id = str(uuid.uuid4())
+
+    try:
+        cursor.execute("""
+        INSERT INTO students (id, name, email, phone)
+        VALUES (?, ?, ?, ?)
+        """, (student_id, name, email, phone))
+        conn.commit()
+        print(f"Student added: {name} ({student_id})")
+        return student_id
+    except sqlite3.IntegrityError as e:
+        print("add ：", e)
+        return None
+    finally:
+        conn.close()
 
 def delete_accommodation(accommodation_id: str) -> bool:
     """Delete accommodation by ID"""
@@ -83,8 +103,20 @@ def delete_landlord(landlord_id: str) -> bool:
         return False
     return True
 
-def get_accommodation_listings(page: int = 1, page_size: int = 10) -> list:
-    """Get public listings with pagination"""
+def delete_student(student_id: str) -> bool:
+    """Delete student by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM students WHERE id = ?", (student_id,))
+    conn.commit()
+    conn.close()
+
+    if cursor.rowcount == 0:
+        return False
+    return True
+
+def get_accommodation(page: int = 1, page_size: int = 10) -> list:
+    """Get accommodation listings with pagination"""
     offset = (page - 1) * page_size
     conn = get_connection()
     cursor = conn.cursor()
