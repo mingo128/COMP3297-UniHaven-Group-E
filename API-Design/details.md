@@ -1,6 +1,6 @@
 ---
 title:  API Design for UniHaven Accommodation Management System
-author: Zhu Yecheng 3036061373
+author: COMP3297 Group E
 geometry: margin=1cm
 ---
 
