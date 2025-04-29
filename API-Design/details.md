@@ -4,220 +4,606 @@ author: COMP3297 Group E
 geometry: margin=1cm
 ---
 
+# UniHaven API Documentation
 
-# API Design for UniHaven Accommodation Management System
+This document provides details about the API endpoints for managing Accommodations, Members, Reservations, and Ratings. The API is built using Django REST Framework and utilizes a `DefaultRouter` for URL generation.
 
-**Assumptions:**
+**Base URL:** `/api/` (Assuming the `basic` app URLs are included under `/api/` in your project's main `urls.py`)
 
-*   **Authentication:**  We'll assume a standard token-based authentication (JWT) for all requests requiring a user context.
-*   **Database:**  I'm assuming a relational database (e.g., PostgreSQL, MySQL) for storing the data.
-*   **UniHaven:** The UniHaven database is the central data store.
-*   **CEDARS Integration:**  User authentication is handled through CEDARS authentication API.
+---
 
+## 1. Accommodations
 
+Endpoints for managing accommodation listings.
 
-**1. Data Models (JSON Schemas):**
+**Model Fields:**
+*   `id` (Integer, Read-only)
+*   `room_number` (Integer, Nullable)
+*   `flat_number` (String)
+*   `floor_number` (Integer)
+*   `building_name` (String)
+*   `availability_start` (Date, YYYY-MM-DD)
+*   `availability_end` (Date, YYYY-MM-DD)
+*   `managed_by` (String)
 
-These define the structure of the data being passed back and forth.
+### List Accommodations
 
-*   **Accommodation:**
+*   **Method:** `GET`
+*   **URL:** `/api/accommodations/`
+*   **Description:** Retrieves a list of all available accommodations.
+*   **Response (200 OK):**
+    ```json
+    [
+        {
+            "id": 1,
+            "room_number": 101,
+            "flat_number": "A",
+            "floor_number": 1,
+            "building_name": "Main Hall",
+            "availability_start": "2025-09-01",
+            "availability_end": "2026-06-30",
+            "managed_by": "University Housing"
+        },
+        {
+            "id": 2,
+            "room_number": null,
+            "flat_number": "B2",
+            "floor_number": 2,
+            "building_name": "West Wing",
+            "availability_start": "2025-08-15",
+            "availability_end": "2026-07-31",
+            "managed_by": "Private Owner"
+        }
+        // ... more accommodations
+    ]
+    ```
 
-```json
-{
-  "id": "string (UUID)",
-  "type": "string (e.g., 'Single_Room', 'Shared_Room', 'Apartment')",
-  "period_of_availability": "string (e.g., 'Semester', 'Yearly')",
-  "number_of_rooms_available": "integer",
-  "Shared_Bathroom": "boolean",
-  "price": "number (float)",
-  "location": "string (e.g., address, neighborhood)",
-  "latitude": "number (float)",
-  "longitude": "number (float)",
-  "amenities": "array of strings (e.g., 'WiFi', 'Air Conditioning', 'Laundry')",
-  "photos": "array of strings (URLs to images)",
-  "landlord_id": "string (UUID)",
-  "availability_calendar": "array of dates",
-  "description": "string",
-  "created_at": "timestamp",
-  "updated_at": "timestamp"
-}
-```
+### Create Accommodation
 
-*   **User (HKU Student):** (Simplified, assumes CEDARS provides more details)
-
-```json
-{
-  "id": "string (UUID)",
-  "student_id": "string", // HKU Student/Staff ID
-  "name": "string",
-  "email": "string",
-  "phone": "string"
-}
-```
-
-*   **Landlord:**
-
-```json
-{
-  "id": "string (UUID)",
-  "name": "string",
-  "email": "string",
-  "phone": "string"
-}
-```
-
-*   **Application:**
-
-```json
-{
-  "id": "string (UUID)",
-  "accommodation_id": "string (UUID)",
-  "user_id": "string (UUID)",
-  "application_date": "timestamp",
-  "status": "string (e.g., 'pending', 'approved', 'rejected', 'canceled')",
-  "rental_contract_start_date": "date",
-  "rental_contract_end_date": "date",
-  "notes": "string"
-}
-```
-
-*   **Rating/Review:**
-
-```json
-{
-  "id": "string (UUID)",
-  "accommodation_id": "string (UUID)",
-  "user_id": "string (UUID)",
-  "overall_rating": "integer (0-5)",
-  "value_for_money": "integer (0-5)",
-  "location_convenience": "integer (0-5)",
-  "property_condition": "integer (0-5)",
-  "landlord_communication": "integer (0-5)",
-  "review_text": "string",
-  "photos": "array of strings (URLs)",
-  "created_at": "timestamp",
-  "updated_at": "timestamp"
-}
-```
-
-**2. API Endpoints:**
-
-Here's a breakdown of the endpoints, grouped by functionality, relating to the use cases.
-
-**A. Accommodation Management (UC01, UC02, UC05):**
-
-*   **`GET /accommodations`**: Retrieve a list of accommodations.  Supports filtering and pagination.
-    *   Query Parameters: `type`, `location`, `price_min`, `price_max`, `amenities`, `page`, `page_size`
-    *   Returns: Array of `Accommodation` objects.
-    *   ie. `GET /accommodations?type=Single_Room&location=Swire_Hall&price_min=1000&page=1&page_size=10`
-
-*   **`GET /accommodations/{id}`**: Retrieve a specific accommodation by ID.
-    *   Returns:  `Accommodation` object.
-    *   ie. `GET /accommodations/a1b2c3d4-e5f6-7890-1234-567890abcdef`
-*   **`POST /accommodations`**: Create a new accommodation (Admin/Landlord).  Requires authentication.
-    *   Request Body: `Accommodation` object (without the `id`).
-    *   Returns: `Accommodation` object (with the created `id`).
-    *   ie. `POST /accommodations`
+*   **Method:** `POST`
+*   **URL:** `/api/accommodations/`
+*   **Description:** Creates a new accommodation record.
+*   **Request Body:**
     ```json
     {
-      "type": "Single_Room",
-      "period_of_availability": "Yearly",
-      "number_of_rooms_available": 5,
-      "Shared_Bathroom": true,
-      "price": 1500.00,
-      "location": "Swire Hall",
-      "latitude": 22.3000000,
-      "longitude": 114.2000000,
-      "amenities": ["WiFi", "Air Conditioning"],
-      "photos": ["url1", "url2"],
-      "landlord_id": "f1g2h3i4-j5k6-7890-1234-567890abcdef"],
-      "availability_calendar": ["2024-01-01", "2024-12-31"],
-      "description": "A single room in Swire Hall."
+        "room_number": 205,
+        "flat_number": "C",
+        "floor_number": 2,
+        "building_name": "North Tower",
+        "availability_start": "2025-09-01",
+        "availability_end": "2026-08-31",
+        "managed_by": "Campus Services"
     }
     ```
-    A successful response would return the created accommodation object with its `id`.
-*   **`POST /accommodations/{id}/update`**: Update an existing accommodation (Admin/Landlord). Requires authentication.
-    *   Request Body: `Accommodation` object (with the `id`).
-    *   Returns: `Accommodation` object.
-*   **`POST /accommodations/{id}/delete`**: Delete an accommodation (Admin/Landlord). Requires authentication.
-
-**B. Application Management (UC03, UC04):**
-
-*   **`GET /applications`**: Retrieve a list of applications.  Supports filtering (e.g., by user, accommodation, status).  Requires authentication.
-    *   Query Parameters: `user_id`, `accommodation_id`, `status`, `page`, `page_size`
-    *   Returns: Array of `Application` objects.
-    *   ie. `GET /applications?user_id={UUID}&status=pending&page=1&page_size=10`
-*   **`GET /applications/{id}`**: Retrieve a specific application by ID.  Requires authentication.
-    *   Returns: `Application` object.
-    *   ie. `GET /applications/a1b2c3d4-e5f6-7890-1234-567890abcdef`
-*   **`POST /applications`**: Create a new application. Requires authentication.
-    *   Request Body: `Application` object (without the `id`).
-    *   Returns: `Application` object (with the created `id`).
-    *   ie. `POST /applications`
+*   **Response (201 Created):**
     ```json
     {
-      "accommodation_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-      "user_id": "f1g2h3i4-j5k6-7890-1234-567890abcdef",
-      "application_date": "2024-01-26T10:00:00Z",
-      "rental_contract_start_date": "2024-09-01",
-      "rental_contract_end_date": "2025-06-30"
+        "id": 3,
+        "room_number": 205,
+        "flat_number": "C",
+        "floor_number": 2,
+        "building_name": "North Tower",
+        "availability_start": "2025-09-01",
+        "availability_end": "2026-08-31",
+        "managed_by": "Campus Services"
     }
     ```
-    A successful response would return the created application object with its `id`.
-*   **`POST /applications/{id}/update`**: Update an existing application (e.g., change status). Requires authentication.
-    *   Request Body: `Application` object (with the `id`).
-    *   Returns: `Application` object.
 
-**C. User & Landlord Management:**
+### Retrieve Accommodation
 
-*   **`GET /users/{id}`**: Retrieve a user by ID.  Requires authentication (may be public or restricted).
-    *   Returns: `User` object.
-    *   ie. `GET /users/f1g2h3i4-j5k6-7890-1234-567890abcdef`
-*   **`GET /landlords/{id}`**: Retrieve a landlord by ID.
-    *   Returns: `Landlord` object.
-    *   ie. `GET /landlords/f1g2h3i4-j5k6-7890-1234-567890abcdef`
-
-**D. Rating & Review (UC07):**
-
-*   **`GET /accommodations/{id}/ratings`**: Retrieve all ratings for a specific accommodation.  Supports pagination.
-    *   Query Parameters: `page`, `page_size`
-    *   Returns: Array of `Rating/Review` objects.
-    *   ie. `GET /accommodations/a1b2c3d4-e5f6-7890-1234-567890abcdef/ratings?page=1&page_size=10`
-*   **`POST /ratings`**: Create a new rating/review. Requires authentication.
-    *   Request Body: `Rating/Review` object (without the `id`).
-    *   Returns: `Rating/Review` object (with the created `id`).
-    *   ie. `POST /ratings`
+*   **Method:** `GET`
+*   **URL:** `/api/accommodations/{id}/`
+*   **Description:** Retrieves details of a specific accommodation by its ID.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the accommodation to retrieve.
+*   **Response (200 OK):**
     ```json
     {
-      "accommodation_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-      "user_id": "f1g2h3i4-j5k6-7890-1234-567890abcdef",
-      "overall_rating": 4,
-      "value_for_money": 4,
-      "location_convenience": 5,
-      "property_condition": 4,
-      "landlord_communication": 5,
-      "review_text": "Great place to stay!",
-      "photos": ["url1", "url2"]
+        "id": 1,
+        "room_number": 101,
+        "flat_number": "A",
+        "floor_number": 1,
+        "building_name": "Main Hall",
+        "availability_start": "2025-09-01",
+        "availability_end": "2026-06-30",
+        "managed_by": "University Housing"
     }
     ```
-    A successful response would return the created rating/review object with its `id`.
-*   **`GET /users/{user_id}/ratings`**: Retrieve all ratings given by a specific user.
-    *   Returns: Array of `Rating/Review` objects.
-    *   ie. `GET /users/f1g2h3i4-j5k6-7890-1234-567890abcdef/ratings`
 
-**E.  Reservation Cancellation (UC05, UC06):**
+### Update Accommodation
 
-*   **`POST /applications/{id}/cancel`**: Cancel a reservation (Application). Requires authentication.
-    *   Returns: `Application` object with updated `status`.
-    *   ie. `POST /applications/a1b2c3d4-e5f6-7890-1234-567890abcdef/cancel`
+*   **Method:** `PUT`
+*   **URL:** `/api/accommodations/{id}/`
+*   **Description:** Updates all fields of a specific accommodation. All fields are required.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the accommodation to update.
+*   **Request Body:**
+    ```json
+    {
+        "room_number": 101,
+        "flat_number": "A-Updated",
+        "floor_number": 1,
+        "building_name": "Main Hall (Renovated)",
+        "availability_start": "2025-09-01",
+        "availability_end": "2026-07-15",
+        "managed_by": "University Housing Dept."
+    }
+    ```
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "room_number": 101,
+        "flat_number": "A-Updated",
+        "floor_number": 1,
+        "building_name": "Main Hall (Renovated)",
+        "availability_start": "2025-09-01",
+        "availability_end": "2026-07-15",
+        "managed_by": "University Housing Dept."
+    }
+    ```
 
-**3.  Key Considerations:**
+### Partial Update Accommodation
 
-*   **Pagination:** Use consistent pagination for list endpoints (e.g., `page` and `page_size` query parameters).
-*   **Filtering:** Allow filtering on key fields for most list endpoints.
-*   **Error Handling:**  Return meaningful error messages (e.g., HTTP status codes, JSON error objects).
-*   **Validation:**  Validate incoming data to ensure data integrity.
-*   **Security:** Use HTTPS for all communication. Protect against common web vulnerabilities (e.g., XSS, CSRF).
-*   **Caching:** Implement caching (e.g., Redis) for frequently accessed data.
-*   **API Versioning:** Use API versioning (e.g., `/v1/accommodations`) to allow for future changes without breaking existing clients.
-* **Asynchronous Tasks:** Use a message queue (e.g., RabbitMQ, Kafka) for tasks that don't need to be done immediately (e.g., sending notifications).
+*   **Method:** `PATCH`
+*   **URL:** `/api/accommodations/{id}/`
+*   **Description:** Partially updates fields of a specific accommodation. Only include fields to be changed.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the accommodation to update.
+*   **Request Body:**
+    ```json
+    {
+        "availability_end": "2026-07-30",
+        "managed_by": "Updated Manager"
+    }
+    ```
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "room_number": 101,
+        "flat_number": "A-Updated", // Assuming previous PUT/PATCH
+        "floor_number": 1,
+        "building_name": "Main Hall (Renovated)", // Assuming previous PUT/PATCH
+        "availability_start": "2025-09-01",
+        "availability_end": "2026-07-30",
+        "managed_by": "Updated Manager"
+    }
+    ```
+
+### Delete Accommodation
+
+*   **Method:** `DELETE`
+*   **URL:** `/api/accommodations/{id}/`
+*   **Description:** Deletes a specific accommodation.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the accommodation to delete.
+*   **Response (204 No Content):** (Empty response body)
+
+---
+
+## 2. Members
+
+Endpoints for managing member information.
+
+**Model Fields:**
+*   `id` (Integer, Read-only)
+*   `name` (String)
+*   `contact` (String, Unique)
+*   `institute` (String)
+
+### List Members
+
+*   **Method:** `GET`
+*   **URL:** `/api/members/`
+*   **Description:** Retrieves a list of all members.
+*   **Response (200 OK):**
+    ```json
+    [
+        {
+            "id": 1,
+            "name": "Alice Wonderland",
+            "contact": "12345678",
+            "institute": "HKU"
+        },
+        {
+            "id": 2,
+            "name": "Bob The Builder",
+            "contact": "87654321",
+            "institute": "CUHK"
+        }
+        // ... more members
+    ]
+    ```
+
+### Create Member
+
+*   **Method:** `POST`
+*   **URL:** `/api/members/`
+*   **Description:** Creates a new member.
+*   **Request Body:**
+    ```json
+    {
+        "name": "Charlie Chaplin",
+        "contact": "11223344",
+        "institute": "PolyU"
+    }
+    ```
+*   **Response (201 Created):**
+    ```json
+    {
+        "id": 3,
+        "name": "Charlie Chaplin",
+        "contact": "11223344",
+        "institute": "PolyU"
+    }
+    ```
+
+### Retrieve Member
+
+*   **Method:** `GET`
+*   **URL:** `/api/members/{id}/`
+*   **Description:** Retrieves details of a specific member.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the member.
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "name": "Alice Wonderland",
+        "contact": "12345678",
+        "institute": "HKU"
+    }
+    ```
+
+### Update Member
+
+*   **Method:** `PUT`
+*   **URL:** `/api/members/{id}/`
+*   **Description:** Updates all fields of a specific member.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the member.
+*   **Request Body:**
+    ```json
+    {
+        "name": "Alice W. Updated",
+        "contact": "99998888",
+        "institute": "HKUST"
+    }
+    ```
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "name": "Alice W. Updated",
+        "contact": "99998888",
+        "institute": "HKUST"
+    }
+    ```
+
+### Partial Update Member
+
+*   **Method:** `PATCH`
+*   **URL:** `/api/members/{id}/`
+*   **Description:** Partially updates fields of a specific member.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the member.
+*   **Request Body:**
+    ```json
+    {
+        "contact": "10101010"
+    }
+    ```
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "name": "Alice W. Updated", // From previous update
+        "contact": "10101010",
+        "institute": "HKUST" // From previous update
+    }
+    ```
+
+### Delete Member
+
+*   **Method:** `DELETE`
+*   **URL:** `/api/members/{id}/`
+*   **Description:** Deletes a specific member.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the member.
+*   **Response (204 No Content):** (Empty response body)
+
+---
+
+## 3. Reservations
+
+Endpoints for managing reservations.
+
+**Model Fields:**
+*   `id` (Integer, Read-only)
+*   `accommodation` (Integer, Foreign Key to Accommodation ID)
+*   `start_date` (Date, YYYY-MM-DD)
+*   `end_date` (Date, YYYY-MM-DD)
+*   `member` (Integer, Foreign Key to Member ID)
+*   `status` (String, Choices: 'Signed', 'Not Signed')
+
+### List Reservations
+
+*   **Method:** `GET`
+*   **URL:** `/api/reservations/`
+*   **Description:** Retrieves a list of all reservations.
+*   **Response (200 OK):**
+    ```json
+    [
+        {
+            "id": 1,
+            "accommodation": 1,
+            "start_date": "2025-09-01",
+            "end_date": "2026-06-30",
+            "member": 1,
+            "status": "Signed"
+        },
+        {
+            "id": 2,
+            "accommodation": 2,
+            "start_date": "2025-08-15",
+            "end_date": "2026-07-31",
+            "member": 2,
+            "status": "Not Signed"
+        }
+        // ... more reservations
+    ]
+    ```
+
+### Create Reservation
+
+*   **Method:** `POST`
+*   **URL:** `/api/reservations/`
+*   **Description:** Creates a new reservation.
+*   **Request Body:**
+    ```json
+    {
+        "accommodation": 1,
+        "start_date": "2026-07-01",
+        "end_date": "2027-06-30",
+        "member": 2,
+        "status": "Not Signed"
+    }
+    ```
+*   **Response (201 Created):**
+    ```json
+    {
+        "id": 3,
+        "accommodation": 1,
+        "start_date": "2026-07-01",
+        "end_date": "2027-06-30",
+        "member": 2,
+        "status": "Not Signed"
+    }
+    ```
+
+### Retrieve Reservation
+
+*   **Method:** `GET`
+*   **URL:** `/api/reservations/{id}/`
+*   **Description:** Retrieves details of a specific reservation.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the reservation.
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "accommodation": 1,
+        "start_date": "2025-09-01",
+        "end_date": "2026-06-30",
+        "member": 1,
+        "status": "Signed"
+    }
+    ```
+
+### Update Reservation
+
+*   **Method:** `PUT`
+*   **URL:** `/api/reservations/{id}/`
+*   **Description:** Updates all fields of a specific reservation.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the reservation.
+*   **Request Body:**
+    ```json
+    {
+        "accommodation": 1,
+        "start_date": "2025-09-01",
+        "end_date": "2026-07-15", // Updated end date
+        "member": 1,
+        "status": "Signed"
+    }
+    ```
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "accommodation": 1,
+        "start_date": "2025-09-01",
+        "end_date": "2026-07-15",
+        "member": 1,
+        "status": "Signed"
+    }
+    ```
+
+### Partial Update Reservation
+
+*   **Method:** `PATCH`
+*   **URL:** `/api/reservations/{id}/`
+*   **Description:** Partially updates fields of a specific reservation.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the reservation.
+*   **Request Body:**
+    ```json
+    {
+        "status": "Signed" // Update status for reservation ID 2
+    }
+    ```
+*   **Response (200 OK):** (Example for updating reservation ID 2)
+    ```json
+    {
+        "id": 2,
+        "accommodation": 2,
+        "start_date": "2025-08-15",
+        "end_date": "2026-07-31",
+        "member": 2,
+        "status": "Signed"
+    }
+    ```
+
+### Delete Reservation
+
+*   **Method:** `DELETE`
+*   **URL:** `/api/reservations/{id}/`
+*   **Description:** Deletes a specific reservation.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the reservation.
+*   **Response (204 No Content):** (Empty response body)
+
+---
+
+## 4. Ratings
+
+Endpoints for managing accommodation ratings.
+
+**Model Fields:**
+*   `id` (Integer, Read-only)
+*   `accommodation` (Integer, Foreign Key to Accommodation ID)
+*   `member` (Integer, Foreign Key to Member ID)
+*   `rating` (Integer)
+*   `comment` (String, Nullable)
+
+### List Ratings
+
+*   **Method:** `GET`
+*   **URL:** `/api/ratings/`
+*   **Description:** Retrieves a list of all ratings.
+*   **Response (200 OK):**
+    ```json
+    [
+        {
+            "id": 1,
+            "accommodation": 1,
+            "member": 1,
+            "rating": 5,
+            "comment": "Great place!"
+        },
+        {
+            "id": 2,
+            "accommodation": 2,
+            "member": 2,
+            "rating": 4,
+            "comment": null
+        }
+        // ... more ratings
+    ]
+    ```
+
+### Create Rating
+
+*   **Method:** `POST`
+*   **URL:** `/api/ratings/`
+*   **Description:** Creates a new rating. Note: The `unique_together` constraint in the model prevents a member from rating the same accommodation more than once.
+*   **Request Body:**
+    ```json
+    {
+        "accommodation": 1,
+        "member": 2,
+        "rating": 4,
+        "comment": "Very convenient location."
+    }
+    ```
+*   **Response (201 Created):**
+    ```json
+    {
+        "id": 3,
+        "accommodation": 1,
+        "member": 2,
+        "rating": 4,
+        "comment": "Very convenient location."
+    }
+    ```
+
+### Retrieve Rating
+
+*   **Method:** `GET`
+*   **URL:** `/api/ratings/{id}/`
+*   **Description:** Retrieves details of a specific rating.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the rating.
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "accommodation": 1,
+        "member": 1,
+        "rating": 5,
+        "comment": "Great place!"
+    }
+    ```
+
+### Update Rating
+
+*   **Method:** `PUT`
+*   **URL:** `/api/ratings/{id}/`
+*   **Description:** Updates all fields of a specific rating.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the rating.
+*   **Request Body:**
+    ```json
+    {
+        "accommodation": 1, // Usually not changed, depends on logic
+        "member": 1,        // Usually not changed
+        "rating": 4,
+        "comment": "Good, but a bit noisy."
+    }
+    ```
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "accommodation": 1,
+        "member": 1,
+        "rating": 4,
+        "comment": "Good, but a bit noisy."
+    }
+    ```
+
+### Partial Update Rating
+
+*   **Method:** `PATCH`
+*   **URL:** `/api/ratings/{id}/`
+*   **Description:** Partially updates fields of a specific rating.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the rating.
+*   **Request Body:**
+    ```json
+    {
+        "comment": "Actually, the noise wasn't too bad."
+    }
+    ```
+*   **Response (200 OK):**
+    ```json
+    {
+        "id": 1,
+        "accommodation": 1,
+        "member": 1,
+        "rating": 4, // From previous update
+        "comment": "Actually, the noise wasn't too bad."
+    }
+    ```
+
+### Delete Rating
+
+*   **Method:** `DELETE`
+*   **URL:** `/api/ratings/{id}/`
+*   **Description:** Deletes a specific rating.
+*   **URL Parameters:**
+    *   `id` (Integer): The ID of the rating.
+*   **Response (204 No Content):** (Empty response body)
+
+---
