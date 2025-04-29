@@ -5,15 +5,7 @@ This repository contains the code for the UniHaven Accommodation Management Syst
 
 ## API Design
 
----
-title:  API Design for UniHaven Accommodation Management System
-author: COMP3297 Group E
-geometry: margin=1cm
----
-
-# UniHaven API Documentation
-
-This document provides details about the API endpoints for managing Accommodations, Members, Reservations, and Ratings. The API is built using Django REST Framework and utilizes a `DefaultRouter` for URL generation.
+The API endpoints for managing Accommodations, Members, Reservations, and Ratings. The API is built using Django REST Framework and utilizes a `DefaultRouter` for URL generation.
 
 **Base URL:** `/api/` (Assuming the `basic` app URLs are included under `/api/` in your project's main `urls.py`)
 
