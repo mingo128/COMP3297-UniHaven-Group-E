@@ -4,6 +4,7 @@ import googlemaps
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.conf import settings
+import requests
 
 # Consider using choices for fields like managed_by, institute, status
 # for better data consistency.
@@ -17,12 +18,17 @@ class Accommodation(models.Model):
     availability_start = models.DateField()
     availability_end = models.DateField()
     number_of_beds = models.PositiveIntegerField(default=1) # Default to 1 bed
+    no_of_bedrooms = models.PositiveIntegerField(default=1) # Default to 1 bedroom
+    type_of_accommodation = models.CharField(max_length=50) # e.g., 'Single', 'Double', 'Shared'
+    price_per_month = models.DecimalField(max_digits=10, decimal_places=2) # Assuming price is in HKD
     managed_by = models.CharField(max_length=100) # Could be ForeignKey if manager is complex
     latitude = models.FloatField(blank=True, null=True) # Nullable for existing records
     longitude = models.FloatField(blank=True, null=True) # Nullable for existing records
     distance_to_HKUcampus = models.FloatField(blank=True, null=True) # Nullable for existing records
     distance_to_HKUcampus_sassoon = models.FloatField(blank=True, null=True) # Nullable for existing records
+    distance_to_HKUcampus_swire = models.FloatField(blank=True, null=True) # Nullable for existing records
     distance_to_HKUcampus_kadoorie = models.FloatField(blank=True, null=True) # Nullable for existing records
+    distance_to_HKUcampus_dentistry = models.FloatField(blank=True, null=True) # Nullable for existing records
     distance_to_CUHKcampus = models.FloatField(blank=True, null=True) # Nullable for existing records
     distance_to_HKUSTcampus = models.FloatField(blank=True, null=True) # Nullable for existing records
     active = models.BooleanField(default=True) # To mark if the accommodation is active or not
@@ -36,6 +42,12 @@ class Accommodation(models.Model):
         campus_HKU_sassoon_latitude =  22.2675
         campus_HKU_sassoon_longitude = 114.12881
 
+        campus_HKU_swire_latitude = 22.20805
+        campus_HKU_swire_longitude = 114.26021
+
+        campus_HKU_dentistry_latitude = 22.28649
+        campus_HKU_dentistry_longitude = 114.14426
+
         campus_HKU_kadoorie_latitude = 22.43022
         campus_HKU_kadoorie_longitude = 114.11429
 
@@ -47,14 +59,17 @@ class Accommodation(models.Model):
 
         def get_lat_long(address):
             address += " Hong Kong"  # Append "Hong Kong" to the address for better geocoding
-            # Use Google Maps API to get latitude and longitude
-            geocode_result = gmaps.geocode(address)
-            if geocode_result:
-                lat = geocode_result[0]['geometry']['location']['lat']
-                lon = geocode_result[0]['geometry']['location']['lng']
-                return lat, lon
-            else:
-                raise ValueError("Could not find location for address: " + address)
+            url = "https://geodata.gov.hk/gs/api/v1/locationSearch?q=" + requests.utils.quote(address)
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("results"):
+                    first_result = data["results"][0]
+                    lat = first_result.get("y")  # Assuming 'y' is latitude
+                    lon = first_result.get("x")  # Assuming 'x' is longitude
+                    if lat is not None and lon is not None:
+                        return lat, lon
+            raise ValueError("Could not find location for address: " + address)
 
         def haversine(lat1, lon1, lat2, lon2):
             R = 6371
@@ -72,6 +87,8 @@ class Accommodation(models.Model):
         self.distance_to_HKUcampus_kadoorie = float('{:.4g}'.format(haversine(self.latitude, self.longitude, campus_HKU_kadoorie_latitude, campus_HKU_kadoorie_longitude)))
         self.distance_to_CUHKcampus = float('{:.4g}'.format(haversine(self.latitude, self.longitude, campus_CUHK_latitude, campus_CUHK_longitude)))
         self.distance_to_HKUSTcampus = float('{:.4g}'.format(haversine(self.latitude, self.longitude, campus_HKUST_latitude, campus_HKUST_longitude)))
+        self.distance_to_HKUcampus_swire = float('{:.4g}'.format(haversine(self.latitude, self.longitude, campus_HKU_swire_latitude, campus_HKU_swire_longitude)))
+        self.distance_to_HKUcampus_dentistry = float('{:.4g}'.format(haversine(self.latitude, self.longitude, campus_HKU_dentistry_latitude, campus_HKU_dentistry_longitude)))
         super().save(*args, **kwargs)
 
     def __str__(self):
