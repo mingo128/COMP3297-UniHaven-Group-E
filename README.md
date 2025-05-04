@@ -6,6 +6,16 @@ This repository contains the code for the UniHaven Accommodation Management Syst
 
 ---
 
+### Fully Complete the tests.py for API testing
+
+The `tests.py` file has been updated to include comprehensive test cases for the serializers of the `Accommodation`, `Member`, `Reservation`, and `Rating` models. Each test class includes setup methods, field content validation, and serializer validation checks.
+
+- All CRUD operations are covered.
+- Each serializer is tested for expected fields and content.
+- Validations for creating new instances are included. ( duplicated data will be rejected )
+
+---
+
 ### Geocoding Process Enhancement
 
 The geocoding mechanism for obtaining latitude and longitude from addresses has been updated.
