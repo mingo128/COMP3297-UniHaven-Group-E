@@ -2,10 +2,79 @@
 
 This repository contains the code for the UniHaven Accommodation Management System, developed as part of the COMP3297 course at The University of Hong Kong.
 
+## Update
 
-# UniHaven API Documentation
+we introduces significant updates to the `models.py` file in the Django Backend of the project. The changes enhance the `Accommodation` model to improve its functionality and provide more detailed data representation. Additionally, the geocoding process has been updated to use the Hong Kong government's GeoData API, replacing the Google Maps API.
 
-This document provides details about the API endpoints for managing Accommodations, Members, Reservations, and Ratings. The API is built using Django REST Framework and utilizes a `DefaultRouter` for URL generation.
+#### **Updates to the `Accommodation` Model**
+Several new fields were added to the `Accommodation` model to better capture the details of accommodations:
+- **New Fields:**
+  - `no_of_bedrooms`: Specifies the number of bedrooms (default: `1`).
+  - `type_of_accommodation`: A string field to indicate the type of accommodation (e.g., 'Single', 'Double', 'Shared').
+  - `price_per_month`: A decimal field to capture the monthly price (assumed in HKD).
+  - `distance_to_HKUcampus_swire`: Distance to HKU Swire campus.
+  - `distance_to_HKUcampus_dentistry`: Distance to HKU Dentistry campus.
+  
+  These fields improve the granularity and usability of the model.
+
+---
+
+#### **Geocoding Process Enhancement**
+The geocoding mechanism was updated to use the Hong Kong government's GeoData API instead of Google Maps API. This change potentially simplifies the geocoding process and avoids the need for a Google API key.
+
+- **Old Implementation:**
+  - Used Google Maps API to fetch latitude and longitude for a given address.
+  - Relied on the `gmaps.geocode()` function.
+
+- **New Implementation:**
+  - Utilizes the GeoData API:
+    ```python
+    url = "https://geodata.gov.hk/gs/api/v1/locationSearch?q=" + requests.utils.quote(address)
+    response = requests.get(url)
+    ```
+  - Parses the API response to extract latitude (`y`) and longitude (`x`).
+
+- **Improved Error Handling:**
+  - Ensures that the API response contains valid data and raises a `ValueError` if the location cannot be found.
+
+---
+
+#### **Campus Coordinates**
+New coordinates were added for additional campuses:
+- **HKU Swire Campus:**
+  - Latitude: `22.20805`
+  - Longitude: `114.26021`
+
+- **HKU Dentistry Campus:**
+  - Latitude: `22.28649`
+  - Longitude: `114.14426`
+
+These coordinates are used to calculate distances to these campuses.
+
+---
+
+#### **Distance Calculation**
+The `save` method was updated to calculate and store distances to the newly added campuses:
+- `distance_to_HKUcampus_swire`
+- `distance_to_HKUcampus_dentistry`
+
+The `haversine` function is reused to compute these distances, and the results are formatted to 4 significant digits.
+
+---
+
+### Summary of Changes in the Code
+
+- **Enhanced Data Representation:**
+  - Added fields to the `Accommodation` model for improved usability and data detail.
+- **Improved Geocoding:**
+  - Replaced Google Maps API with GeoData API for geolocation.
+- **Expanded Distance Calculations:**
+  - Added support for distances to new campuses.
+
+
+
+## UniHaven API Documentation
+
 
 **Base URL:** (Assuming standard Django REST Framework router registration) `/api/v1/`
 
