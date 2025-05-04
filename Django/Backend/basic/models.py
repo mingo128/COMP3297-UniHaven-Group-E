@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.conf import settings
 import requests
+import pyproj
+import urllib.parse
 
 # Consider using choices for fields like managed_by, institute, status
 # for better data consistency.
@@ -57,19 +59,78 @@ class Accommodation(models.Model):
         campus_HKUST_latitude = 22.335
         campus_HKUST_longitude = 114.265
 
+        hk1980_crs = pyproj.CRS("EPSG:2326")
+        wgs84_crs = pyproj.CRS("EPSG:4326")
+        transformer = pyproj.Transformer.from_crs(hk1980_crs, wgs84_crs, always_xy=True) # Ensure (lon, lat) order for WGS84
+
+
         def get_lat_long(address):
-            address += " Hong Kong"  # Append "Hong Kong" to the address for better geocoding
-            url = "https://geodata.gov.hk/gs/api/v1/locationSearch?q=" + requests.utils.quote(address)
-            response = requests.get(url)
-            if response.status_code == 200:
+            # Append " Hong Kong" to the address for better geocoding
+            full_address = address + " Hong Kong"
+            # URL encode the address to handle spaces and special characters
+            encoded_address = urllib.parse.quote(full_address)
+            url = f"https://geodata.gov.hk/gs/api/v1.0.0/locationSearch?q={encoded_address}"
+
+            try:
+                # Add a timeout to the request
+                response = requests.get(url, timeout=10)
+                print(f"Request URL: {response.url}")
+                print(f"Status Code: {response.status_code}")
+                # Print response text only if debugging is needed or if status is not 200
+                # print(f"Response Text: {response.text}")
+
+                response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
+
                 data = response.json()
-                if data.get("results"):
-                    first_result = data["results"][0]
-                    lat = first_result.get("y")  # Assuming 'y' is latitude
-                    lon = first_result.get("x")  # Assuming 'x' is longitude
-                    if lat is not None and lon is not None:
-                        return lat, lon
-            raise ValueError("Could not find location for address: " + address)
+
+                # Function to process a result dictionary and perform transformation
+                def process_result(result_dict):
+                    if isinstance(result_dict, dict):
+                        northing = result_dict.get("y") # HK1980 Northing
+                        easting = result_dict.get("x")  # HK1980 Easting
+                        if northing is not None and easting is not None:
+                            try:
+                                # Transform coordinates: easting (x) maps to longitude, northing (y) maps to latitude
+                                lon, lat = transformer.transform(easting, northing)
+                                return lat, lon
+                            except Exception as transform_err:
+                                print(f"Error during coordinate transformation: {transform_err}")
+                                return None
+                        else:
+                            print("Error: Easting ('x') or Northing ('y') not found in the result.")
+                    else:
+                        print(f"Error: Result item is not a dictionary, but type {type(result_dict)}. Content: {result_dict}")
+                    return None
+
+                # Check if data itself is the list of results
+                if isinstance(data, list) and data:
+                    coords = process_result(data[0])
+                    if coords:
+                        return coords
+                # Handle cases where the API might return a dict containing results
+                elif isinstance(data, dict) and data.get("results") and isinstance(data["results"], list) and data["results"]:
+                    coords = process_result(data["results"][0])
+                    if coords:
+                        return coords
+                else:
+                    print(f"Error: No valid results found in the response. Data received: {data}")
+
+            except requests.exceptions.Timeout:
+                print(f"Error: Request timed out for address: {full_address}")
+            except requests.exceptions.HTTPError as http_err:
+                print(f"HTTP error occurred: {http_err} - Status Code: {response.status_code}")
+                print(f"Response Text: {response.text}") # Print response text on HTTP error
+            except requests.exceptions.RequestException as req_err:
+                print(f"Error during requests to {url}: {req_err}")
+            except requests.exceptions.JSONDecodeError:
+                # Check if response exists before accessing its text attribute
+                resp_text = response.text if 'response' in locals() and hasattr(response, 'text') else "N/A"
+                print(f"Error: Failed to decode JSON response. Response text: {resp_text}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+
+            # Raise ValueError if coordinates couldn't be obtained for any reason
+            raise ValueError(f"Could not find location for address: {full_address}")
 
         def haversine(lat1, lon1, lat2, lon2):
             R = 6371
