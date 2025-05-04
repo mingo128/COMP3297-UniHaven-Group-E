@@ -2,78 +2,96 @@
 
 This repository contains the code for the UniHaven Accommodation Management System, developed as part of the COMP3297 course at The University of Hong Kong.
 
-## Update
-
-we introduces significant updates to the `models.py` file in the Django Backend of the project. The changes enhance the `Accommodation` model to improve its functionality and provide more detailed data representation. Additionally, the geocoding process has been updated to use the Hong Kong government's GeoData API, replacing the Google Maps API.
-
-#### **Updates to the `Accommodation` Model**
-Several new fields were added to the `Accommodation` model to better capture the details of accommodations:
-- **New Fields:**
-  - `no_of_bedrooms`: Specifies the number of bedrooms (default: `1`).
-  - `type_of_accommodation`: A string field to indicate the type of accommodation (e.g., 'Single', 'Double', 'Shared').
-  - `price_per_month`: A decimal field to capture the monthly price (assumed in HKD).
-  - `distance_to_HKUcampus_swire`: Distance to HKU Swire campus.
-  - `distance_to_HKUcampus_dentistry`: Distance to HKU Dentistry campus.
-  
-  These fields improve the granularity and usability of the model.
+## Update After Meeting
 
 ---
 
-#### **Geocoding Process Enhancement**
-The geocoding mechanism was updated to use the Hong Kong government's GeoData API instead of Google Maps API. This change potentially simplifies the geocoding process and avoids the need for a Google API key.
+### Geocoding Process Enhancement
 
-- **Old Implementation:**
-  - Used Google Maps API to fetch latitude and longitude for a given address.
-  - Relied on the `gmaps.geocode()` function.
+The geocoding mechanism for obtaining latitude and longitude from addresses has been updated.
 
-- **New Implementation:**
-  - Utilizes the GeoData API:
-    ```python
-    url = "https://geodata.gov.hk/gs/api/v1/locationSearch?q=" + requests.utils.quote(address)
-    response = requests.get(url)
-    ```
-  - Parses the API response to extract latitude (`y`) and longitude (`x`).
-
-- **Improved Error Handling:**
-  - Ensures that the API response contains valid data and raises a `ValueError` if the location cannot be found.
+-   **Previous Method:** Utilized the Google Maps Geocoding API.
+-   **New Method:** Switched to the Hong Kong government's **GeoData API**.
+    -   Uses the endpoint: `https://geodata.gov.hk/gs/api/v1/locationSearch?q=<encoded_address>`
+    -   Parses latitude (`y`) and longitude (`x`) from the JSON response.
+    -   Includes improved error handling to raise a `ValueError` if the location cannot be found.
+-   **Benefit:** This change potentially simplifies the process and removes the dependency on a Google API key.
 
 ---
 
-#### **Campus Coordinates**
-New coordinates were added for additional campuses:
-- **HKU Swire Campus:**
-  - Latitude: `22.20805`
-  - Longitude: `114.26021`
+### `Accommodation` Model Updates
 
-- **HKU Dentistry Campus:**
-  - Latitude: `22.28649`
-  - Longitude: `114.14426`
+The `Accommodation` model has been enhanced to capture more detailed information and calculate distances to university campuses.
 
-These coordinates are used to calculate distances to these campuses.
+-   **New Fields Added:**
+    -   `no_of_bedrooms`: Integer field for the number of bedrooms (default: `1`).
+    -   `number_of_beds`: Integer field for the number of beds (default: `1`).
+    -   `type_of_accommodation`: String field for the accommodation type (e.g., 'Single', 'Double', 'Shared').
+    -   `price_per_month`: Decimal field for the monthly rental price (assumed HKD).
+    -   Multiple distance fields (Decimal type) calculated automatically:
+        -   `distance_to_HKUcampus`
+        -   `distance_to_HKUcampus_swire`
+        -   `distance_to_HKUcampus_dentistry`
+        -   `distance_to_CUHKcampus`
+        -   *(Potentially others based on implementation)*
+
+-   **Campus Coordinates Used for Calculation:**
+    -   HKU Main Campus: *(Coordinates assumed to be pre-existing)*
+    -   HKU Swire Campus: Latitude `22.20805`, Longitude `114.26021`
+    -   HKU Dentistry Campus: Latitude `22.28649`, Longitude `114.14426`
+    -   CUHK Campus: *(Coordinates assumed to be pre-existing)*
+
+-   **Updated `save()` Method:**
+    -   Refactored to incorporate the new GeoData API for geocoding the address.
+    -   Calculates distances to multiple specified university campuses using the Haversine formula upon saving.
+    -   Stores the calculated distances in the respective fields.
 
 ---
 
-#### **Distance Calculation**
-The `save` method was updated to calculate and store distances to the newly added campuses:
-- `distance_to_HKUcampus_swire`
-- `distance_to_HKUcampus_dentistry`
+### `Member` Model Updates
 
-The `haversine` function is reused to compute these distances, and the results are formatted to 4 significant digits.
+-   **New Field Added:**
+    -   `email`: An `EmailField` for member communication.
+-   **Constraint Change:**
+    -   Removed the `unique=True` constraint from the `contact` field.
 
 ---
 
-### Summary of Changes in the Code
+### `Reservation` Model Updates
 
-- **Enhanced Data Representation:**
-  - Added fields to the `Accommodation` model for improved usability and data detail.
-- **Improved Geocoding:**
-  - Replaced Google Maps API with GeoData API for geolocation.
-- **Expanded Distance Calculations:**
-  - Added support for distances to new campuses.
+Significant enhancements were made to add validation and notifications.
+
+-   **Custom Validation Logic (`clean()` method):**
+    -   Prevents marking a reservation with `signed=True` as inactive (`active=False`).
+    -   Disallows overlapping reservation date ranges for the *same* accommodation.
+    -   Ensures the `start_date` is not after the `end_date`.
+-   **Email Notifications (`save()` method):**
+    -   Sends an email notification when a reservation's `active` status changes.
+    -   Uses a custom `__init__` method to track the original `active` status for detecting updates.
+-   **Ordering:** Improved default ordering for querysets.
+
+---
+
+### `Rating` Model Updates
+
+Validation logic was added to ensure data integrity.
+
+-   **Custom Validation Logic (`clean()` method):**
+    -   Ensures members can only submit a rating *after* their associated reservation `end_date` has passed.
+    -   Validates that the `rating_value` is within the allowed range (e.g., 1 to 5).
+-   **Updated `save()` Method:** Enforces the validation rules before saving.
+-   **Ordering:** Improved default ordering for querysets.
+
+---
+
+### General Meta and Constraint Changes
+
+-   Model `Meta` options were updated to improve default ordering for `Reservation` and `Rating`.
+-   Some previously strict database constraints (like `unique=True` on `Member.contact`) were removed in favor of more flexible custom validation logic within the model's `clean()` and `save()` methods.
 
 
 
-## UniHaven API Documentation
+# UniHaven API Documentation
 
 
 **Base URL:** (Assuming standard Django REST Framework router registration) `/api/v1/`
