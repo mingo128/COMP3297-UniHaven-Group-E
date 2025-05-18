@@ -1,6 +1,6 @@
 # COMP3297-UniHaven-Group-E
 
-This repository contains the code for the UniHaven Accommodation Management System, developed as part of the COMP3297 course at The University of Hong Kong.
+A Django Backend
 
 ## Update After Meeting
 
